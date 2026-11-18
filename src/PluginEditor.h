@@ -283,7 +283,7 @@ public:
 };
 
 //==============================================================================
-// License Activation Modal Overlay (SignalForge Bosendorfer 290)
+// License Activation & 7-Day Trial Modal Overlay (Signal Forge Audio Labs)
 //==============================================================================
 class LicenseActivationOverlay : public juce::Component
 {
@@ -325,6 +325,14 @@ public:
             }
         };
 
+        buyLicenseButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2a4a2e));
+        buyLicenseButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe8ffe8));
+        buyLicenseButton.onClick = []()
+        {
+            juce::URL(LicenseManager::kStoreUrl).launchInDefaultBrowser();
+        };
+        addAndMakeVisible(buyLicenseButton);
+
         closeButton.onClick = [this]()
         {
             setVisible(false);
@@ -334,13 +342,47 @@ public:
         addAndMakeVisible(closeButton);
     }
 
-    void refreshFromManager()
+    void refreshFromManager(bool audioMutedThisSession = false)
     {
-        if (LicenseManager::getInstance().isLicensed())
+        auto& mgr = LicenseManager::getInstance();
+        if (mgr.isLicensed())
         {
-            emailEditor.setText(LicenseManager::getInstance().getLicensedEmail(), juce::dontSendNotification);
-            statusMessage = "Product is licensed and activated.";
-            statusIsError = false;
+            emailEditor.setText(mgr.getLicensedEmail(), juce::dontSendNotification);
+            trialHeadline   = "Product Licensed";
+            trialNotice     = "Thank you for supporting Signal Forge Audio Labs!";
+            bannerIsWarning = false;
+            statusMessage   = "Product is licensed and activated.";
+            statusIsError   = false;
+            closeButton.setButtonText("Close");
+        }
+        else if (audioMutedThisSession)
+        {
+            trialHeadline   = "7-Day Trial Expired  -  Audio Output Disabled";
+            trialNotice     = "Please visit SFALabs.digital to purchase a license, or activate your key below.";
+            bannerIsWarning = true;
+            statusMessage   = {};
+            statusIsError   = false;
+            closeButton.setButtonText("Close");
+        }
+        else if (mgr.isTrialExpiredNow())
+        {
+            trialHeadline   = "Your 7-Day Trial Has Expired";
+            trialNotice     = "Audio remains active for this session and will be disabled on next launch. Visit SFALabs.digital to purchase a license.";
+            bannerIsWarning = true;
+            statusMessage   = {};
+            statusIsError   = false;
+            closeButton.setButtonText("Continue Session");
+        }
+        else
+        {
+            const int daysLeft = mgr.getTrialDaysRemaining();
+            trialHeadline   = "7-Day Free Trial  -  " + juce::String(daysLeft)
+                            + (daysLeft == 1 ? " day remaining" : " days remaining");
+            trialNotice     = "Visit SFALabs.digital anytime to purchase a full license.";
+            bannerIsWarning = false;
+            statusMessage   = {};
+            statusIsError   = false;
+            closeButton.setButtonText("Continue Trial");
         }
         repaint();
     }
@@ -349,46 +391,72 @@ public:
     {
         g.fillAll(juce::Colour(0xc80a0908));
 
-        auto card = getLocalBounds().toFloat().withSizeKeepingCentre(440.0f, 250.0f);
+        auto card = getLocalBounds().toFloat().withSizeKeepingCentre(500.0f, 300.0f);
         g.setColour(juce::Colour(0xff1e1c1a));
         g.fillRoundedRectangle(card, 8.0f);
-        g.setColour(juce::Colour(0xffd4af37));
+        g.setColour(bannerIsWarning ? juce::Colour(0xffe06040) : juce::Colour(0xffd4af37));
         g.drawRoundedRectangle(card, 8.0f, 1.5f);
 
         g.setColour(juce::Colour(0xfff5d76e));
         g.setFont(juce::FontOptions(16.0f, juce::Font::bold));
         g.drawText("SIGNAL FORGE AUDIO LABS",
-                   card.withTop(card.getY() + 14.0f).withHeight(24.0f),
+                   card.withTop(card.getY() + 12.0f).withHeight(22.0f),
                    juce::Justification::centred);
 
         g.setColour(juce::Colour(0xffb8b2a6));
-        g.setFont(juce::FontOptions(11.5f));
-        g.drawText("Classic Vienna 290  -  Enter Email & Serial Key",
-                   card.withTop(card.getY() + 38.0f).withHeight(18.0f),
+        g.setFont(juce::FontOptions(11.0f));
+        g.drawText("Classic Vienna 290  -  License Activation & 7-Day Trial",
+                   card.withTop(card.getY() + 34.0f).withHeight(16.0f),
                    juce::Justification::centred);
+
+        // Trial / expiry status banner
+        auto banner = juce::Rectangle<float>(card.getX() + 20.0f, card.getY() + 56.0f, card.getWidth() - 40.0f, 52.0f);
+        g.setColour(bannerIsWarning ? juce::Colour(0xff3a1d17) : juce::Colour(0xff25221c));
+        g.fillRoundedRectangle(banner, 5.0f);
+        g.setColour(bannerIsWarning ? juce::Colour(0xffe06040) : juce::Colour(0xff6b5d3e));
+        g.drawRoundedRectangle(banner, 5.0f, 1.0f);
+
+        g.setColour(bannerIsWarning ? juce::Colour(0xffff8a70) : juce::Colour(0xfff5d76e));
+        g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        g.drawText(trialHeadline,
+                   banner.reduced(8.0f, 3.0f).removeFromTop(18.0f),
+                   juce::Justification::centred);
+
+        g.setColour(juce::Colour(0xffece6da));
+        g.setFont(juce::FontOptions(10.5f));
+        g.drawFittedText(trialNotice,
+                         banner.reduced(8.0f, 3.0f).withTrimmedTop(18.0f).toNearestInt(),
+                         juce::Justification::centred, 2);
 
         g.setColour(juce::Colour(0xffdcd8d0));
         g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-        g.drawText("Email:", static_cast<int>(card.getX() + 26.0f), static_cast<int>(card.getY() + 72.0f), 80, 24, juce::Justification::centredLeft);
-        g.drawText("Serial Key:", static_cast<int>(card.getX() + 26.0f), static_cast<int>(card.getY() + 112.0f), 80, 24, juce::Justification::centredLeft);
+        g.drawText("Email:", static_cast<int>(card.getX() + 24.0f), static_cast<int>(card.getY() + 120.0f), 80, 24, juce::Justification::centredLeft);
+        g.drawText("Serial Key:", static_cast<int>(card.getX() + 24.0f), static_cast<int>(card.getY() + 156.0f), 80, 24, juce::Justification::centredLeft);
 
         if (statusMessage.isNotEmpty())
         {
             g.setColour(statusIsError ? juce::Colour(0xffff6b5b) : juce::Colour(0xff5ce63c));
             g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
             g.drawText(statusMessage,
-                       card.withTop(card.getY() + 150.0f).withHeight(20.0f),
+                       card.withTop(card.getY() + 190.0f).withHeight(20.0f),
                        juce::Justification::centred);
         }
+
+        g.setColour(juce::Colour(0xff9c9587));
+        g.setFont(juce::FontOptions(10.5f));
+        g.drawText("Purchase a license anytime at SFALabs.digital",
+                   card.withTop(card.getY() + 266.0f).withHeight(18.0f),
+                   juce::Justification::centred);
     }
 
     void resized() override
     {
-        auto card = getLocalBounds().withSizeKeepingCentre(440, 250);
-        emailEditor.setBounds(card.getX() + 110, card.getY() + 70, 300, 26);
-        serialEditor.setBounds(card.getX() + 110, card.getY() + 110, 300, 26);
-        activateButton.setBounds(card.getX() + 110, card.getY() + 188, 144, 30);
-        closeButton.setBounds(card.getX() + 266, card.getY() + 188, 144, 30);
+        auto card = getLocalBounds().withSizeKeepingCentre(500, 300);
+        emailEditor.setBounds(card.getX() + 108, card.getY() + 118, 368, 26);
+        serialEditor.setBounds(card.getX() + 108, card.getY() + 154, 368, 26);
+        activateButton.setBounds(card.getX() + 24, card.getY() + 220, 140, 30);
+        buyLicenseButton.setBounds(card.getX() + 174, card.getY() + 220, 168, 30);
+        closeButton.setBounds(card.getX() + 352, card.getY() + 220, 124, 30);
     }
 
     std::function<void()> onLicenseChanged;
@@ -396,10 +464,14 @@ public:
 private:
     juce::TextEditor emailEditor;
     juce::TextEditor serialEditor;
-    juce::TextButton activateButton { "Activate License" };
-    juce::TextButton closeButton    { "Close / Demo" };
+    juce::TextButton activateButton   { "Activate License" };
+    juce::TextButton buyLicenseButton { "Buy at SFALabs.digital" };
+    juce::TextButton closeButton      { "Continue Trial" };
+    juce::String trialHeadline;
+    juce::String trialNotice;
     juce::String statusMessage;
-    bool statusIsError { false };
+    bool bannerIsWarning { false };
+    bool statusIsError   { false };
 };
 
 //==============================================================================
@@ -529,6 +601,8 @@ private:
     float smoothedMeterR { 0.0f };
     uint32_t lastSeenHitCounter { 0 };
     int lastScopeReadIndex { 0 };
+    int trialCheckTickCounter { 0 };
+    bool midSessionExpiryNotified { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BosendorferAudioProcessorEditor)
 };

@@ -36,6 +36,7 @@ BosendorferAudioProcessor::BosendorferAudioProcessor()
       apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
     LicenseManager::getInstance().checkStoredLicense();
+    trialExpiredAtLaunch.store(LicenseManager::getInstance().isTrialExpiredNow(), std::memory_order_relaxed);
     loadEmbeddedSoundFont(EmbeddedBank::Standard);
 }
 
@@ -399,22 +400,15 @@ void BosendorferAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // 1. Check license state flag
+    // 1. Check license & 7-day trial state (audio stays active if trial expires mid-session; muted on next launch)
     const bool licensed = LicenseManager::getInstance().isLicensed();
 
-    if (!licensed)
+    if (!licensed && trialExpiredAtLaunch.load(std::memory_order_relaxed))
     {
-        // 15-minute trial demo mode: mute after timeout
-        trialTimerSamples += buffer.getNumSamples();
-        const double sampleRate = getSampleRate() > 0 ? getSampleRate() : 44100.0;
-
-        if (trialTimerSamples > (int64_t)(15.0 * 60.0 * sampleRate))
-        {
-            buffer.clear();
-            rmsLeft.store(0.0f, std::memory_order_relaxed);
-            rmsRight.store(0.0f, std::memory_order_relaxed);
-            return;
-        }
+        buffer.clear();
+        rmsLeft.store(0.0f, std::memory_order_relaxed);
+        rmsRight.store(0.0f, std::memory_order_relaxed);
+        return;
     }
 
     // 2. Standard TSF MIDI & convolution processing continues below...

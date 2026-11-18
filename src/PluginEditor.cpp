@@ -240,7 +240,7 @@ BosendorferAudioProcessorEditor::BosendorferAudioProcessorEditor(BosendorferAudi
     addAndMakeVisible(licenseButton);
     licenseButton.onClick = [this]()
     {
-        licenseOverlay.refreshFromManager();
+        licenseOverlay.refreshFromManager(audioProcessor.isTrialAudioMuted());
         licenseOverlay.setVisible(!licenseOverlay.isVisible());
         licenseOverlay.toFront(true);
     };
@@ -413,8 +413,10 @@ BosendorferAudioProcessorEditor::BosendorferAudioProcessorEditor(BosendorferAudi
     };
     if (!LicenseManager::getInstance().isLicensed())
     {
-        licenseOverlay.refreshFromManager();
+        licenseOverlay.refreshFromManager(audioProcessor.isTrialAudioMuted());
         licenseOverlay.setVisible(true);
+        if (LicenseManager::getInstance().isTrialExpiredNow())
+            midSessionExpiryNotified = true;
     }
 
     refreshPresetComboBox();
@@ -517,8 +519,21 @@ void BosendorferAudioProcessorEditor::updateBankButtonStates()
     brightSf2Button.setToggleState(bank == BosendorferAudioProcessor::EmbeddedBank::Bright,
                                    juce::dontSendNotification);
 
-    const bool licensed = LicenseManager::getInstance().isLicensed();
-    licenseButton.setButtonText(licensed ? "Licensed" : "Activate");
+    auto& licenseMgr = LicenseManager::getInstance();
+    const bool licensed = licenseMgr.isLicensed();
+    if (licensed)
+    {
+        licenseButton.setButtonText("Licensed");
+    }
+    else if (audioProcessor.isTrialAudioMuted() || licenseMgr.isTrialExpiredNow())
+    {
+        licenseButton.setButtonText("Expired");
+    }
+    else
+    {
+        const int daysLeft = licenseMgr.getTrialDaysRemaining();
+        licenseButton.setButtonText("Trial " + juce::String(daysLeft) + "d");
+    }
     licenseButton.setToggleState(licensed, juce::dontSendNotification);
 }
 
@@ -559,6 +574,22 @@ void BosendorferAudioProcessorEditor::timerCallback()
     }
 
     updateLayerState();
+
+    // Check once per second for mid-session 7-day trial expiration:
+    // Notify the user and refer them to SFALabs.digital without cutting audio mid-session.
+    if (++trialCheckTickCounter >= 30)
+    {
+        trialCheckTickCounter = 0;
+        auto& licenseMgr = LicenseManager::getInstance();
+        if (!licenseMgr.isLicensed() && !midSessionExpiryNotified && licenseMgr.isTrialExpiredNow())
+        {
+            midSessionExpiryNotified = true;
+            updateBankButtonStates();
+            licenseOverlay.refreshFromManager(audioProcessor.isTrialAudioMuted());
+            licenseOverlay.setVisible(true);
+            licenseOverlay.toFront(true);
+        }
+    }
 
     const float scaleX = static_cast<float>(getWidth()) / 1000.0f;
     const float scaleY = static_cast<float>(getHeight()) / 580.0f;

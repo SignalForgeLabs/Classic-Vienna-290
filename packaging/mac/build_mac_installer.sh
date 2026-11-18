@@ -87,9 +87,11 @@ pkgbuild --root "$TMP_DIR/root_app" \
          --install-location "/" \
          "$TMP_DIR/packages/ClassicVienna290_Standalone.pkg"
 
-# Stage Documentation
+# Stage Documentation & Uninstaller
 mkdir -p "$TMP_DIR/root_docs/Library/Audio/Presets/SignalForgeAudioLabs/ClassicVienna290"
 cp "$REPO_ROOT/packaging/common/README_INSTALL.txt" "$TMP_DIR/root_docs/Library/Audio/Presets/SignalForgeAudioLabs/ClassicVienna290/README.txt"
+cp "$SCRIPT_DIR/Uninstall Classic Vienna 290.command" "$TMP_DIR/root_docs/Library/Audio/Presets/SignalForgeAudioLabs/ClassicVienna290/Uninstall Classic Vienna 290.command"
+chmod +x "$TMP_DIR/root_docs/Library/Audio/Presets/SignalForgeAudioLabs/ClassicVienna290/Uninstall Classic Vienna 290.command"
 pkgbuild --root "$TMP_DIR/root_docs" \
          --identifier "${BUNDLE_ID}.docs" \
          --version "$VERSION" \
@@ -104,11 +106,18 @@ productbuild --distribution "$SCRIPT_DIR/distribution.xml" \
              --resources "$SCRIPT_DIR" \
              "$PKG_OUT"
 
+# Copy standalone uninstaller script into dist/mac
+UNINSTALL_OUT="$DIST_DIR/Uninstall Classic Vienna 290.command"
+cp "$SCRIPT_DIR/Uninstall Classic Vienna 290.command" "$UNINSTALL_OUT"
+chmod +x "$UNINSTALL_OUT"
+
 # 4. Wrap into distributable Disk Image (.dmg)
 echo "[5/5] Creating distributable DMG disk image..."
 DMG_STAGING="$TMP_DIR/dmg_root"
 mkdir -p "$DMG_STAGING"
 cp "$PKG_OUT" "$DMG_STAGING/"
+cp "$UNINSTALL_OUT" "$DMG_STAGING/Uninstall Classic Vienna 290.command"
+chmod +x "$DMG_STAGING/Uninstall Classic Vienna 290.command"
 cp "$REPO_ROOT/packaging/common/README_INSTALL.txt" "$DMG_STAGING/README.txt"
 
 DMG_OUT="$DIST_DIR/Classic_Vienna_290_macOS_v${VERSION}.dmg"
@@ -122,6 +131,7 @@ rm -rf "$TMP_DIR"
 
 echo "======================================================="
 echo " SUCCESS! macOS distribution deliverables generated:"
-echo " 1. Package:    $PKG_OUT"
-echo " 2. Disk Image: $DMG_OUT"
+echo " 1. Package:     $PKG_OUT"
+echo " 2. Uninstaller: $UNINSTALL_OUT"
+echo " 3. Disk Image:  $DMG_OUT"
 echo "======================================================="

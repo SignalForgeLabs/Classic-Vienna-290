@@ -39,6 +39,8 @@ cp -R "$VST3_SRC" "$PKG_DIR/Classic Vienna 290.vst3"
 cp "$STANDALONE_SRC" "$PKG_DIR/Classic Vienna 290"
 chmod +x "$PKG_DIR/Classic Vienna 290"
 cp packaging/common/README_INSTALL.txt "$PKG_DIR/README.txt"
+cp "$SCRIPT_DIR/uninstall.sh" "$PKG_DIR/uninstall.sh"
+chmod +x "$PKG_DIR/uninstall.sh"
 
 cat << 'INSTALL_EOF' > "$PKG_DIR/install.sh"
 #!/usr/bin/env bash
@@ -53,7 +55,7 @@ echo "=========================================================="
 # 1. Install VST3 plugin
 DEST_VST3="$HOME/.vst3"
 mkdir -p "$DEST_VST3"
-echo "[1/3] Installing VST3 plugin to $DEST_VST3/Classic Vienna 290.vst3 ..."
+echo "[1/4] Installing VST3 plugin to $DEST_VST3/Classic Vienna 290.vst3 ..."
 rm -rf "$DEST_VST3/Bosendorfer Imperial 290.vst3"
 rm -rf "$DEST_VST3/Classic Vienna 290.vst3"
 cp -R "$SCRIPT_DIR/Classic Vienna 290.vst3" "$DEST_VST3/"
@@ -62,11 +64,18 @@ chmod -R 755 "$DEST_VST3/Classic Vienna 290.vst3"
 # 2. Install Standalone binary
 DEST_BIN="$HOME/.local/bin"
 mkdir -p "$DEST_BIN"
-echo "[2/3] Installing standalone executable to $DEST_BIN/classic-vienna-290 ..."
+echo "[2/4] Installing standalone executable to $DEST_BIN/classic-vienna-290 ..."
 rm -f "$DEST_BIN/classic-vienna-290" "$DEST_BIN/bosendorfer-imperial-290"
 cp "$SCRIPT_DIR/Classic Vienna 290" "$DEST_BIN/classic-vienna-290"
 chmod 755 "$DEST_BIN/classic-vienna-290"
 ln -sf "$DEST_BIN/classic-vienna-290" "$DEST_BIN/bosendorfer-imperial-290"
+
+# 3. Install Uninstaller script
+echo "[3/4] Installing uninstaller to $DEST_BIN/classic-vienna-290-uninstall ..."
+if [ -f "$SCRIPT_DIR/uninstall.sh" ]; then
+    cp "$SCRIPT_DIR/uninstall.sh" "$DEST_BIN/classic-vienna-290-uninstall"
+    chmod 755 "$DEST_BIN/classic-vienna-290-uninstall"
+fi
 
 # Ensure default ALSA audio output configuration exists for Standalone
 SETTINGS_FILE="$HOME/.config/Classic Vienna 290.settings"
@@ -87,7 +96,7 @@ if [ ! -f "$SETTINGS_FILE" ] || grep -q 'name="audioSetup" val=""' "$SETTINGS_FI
 SETTINGS_EOF
 fi
 
-# 3. Create desktop launcher shortcut
+# 4. Create desktop launcher shortcut
 DESKTOP_DIR="$HOME/Desktop"
 APPS_DIR="$HOME/.local/share/applications"
 mkdir -p "$APPS_DIR"
@@ -113,11 +122,12 @@ if [ -d "$DESKTOP_DIR" ]; then
     gio set "$DESKTOP_DIR/Classic_Vienna_290.desktop" metadata::trusted true 2>/dev/null || true
 fi
 
-echo "[3/3] Created Desktop and Application menu shortcuts."
+echo "[4/4] Created Desktop and Application menu shortcuts."
 echo "=========================================================="
 echo " Installation complete!"
-echo " - VST3: $DEST_VST3/Classic Vienna 290.vst3"
-echo " - Standalone: $DEST_BIN/classic-vienna-290"
+echo " - VST3:        $DEST_VST3/Classic Vienna 290.vst3"
+echo " - Standalone:  $DEST_BIN/classic-vienna-290"
+echo " - Uninstaller: $DEST_BIN/classic-vienna-290-uninstall"
 echo "=========================================================="
 INSTALL_EOF
 chmod +x "$PKG_DIR/install.sh"
@@ -125,6 +135,11 @@ chmod +x "$PKG_DIR/install.sh"
 cd "$DIST_DIR"
 tar -czvf "Classic_Vienna_290_Linux_v${VERSION}.tar.gz" "Classic_Vienna_290_Linux_v${VERSION}"
 zip -r "Classic_Vienna_290_Linux_v${VERSION}.zip" "Classic_Vienna_290_Linux_v${VERSION}"
+
+# Build standalone uninstaller (.run)
+RUN_UNINSTALLER="$DIST_DIR/Classic_Vienna_290_Linux_v${VERSION}_Uninstaller.run"
+cp "$SCRIPT_DIR/uninstall.sh" "$RUN_UNINSTALLER"
+chmod +x "$RUN_UNINSTALLER"
 
 # Build self-extracting installable binary (.run)
 RUN_INSTALLER="$DIST_DIR/Classic_Vienna_290_Linux_v${VERSION}_Installer.run"
@@ -139,7 +154,12 @@ TMP_EXTRACT="$(mktemp -d /tmp/classic_vienna_installer.XXXXXX)"
 trap 'rm -rf "$TMP_EXTRACT"' EXIT
 ARCHIVE_LINE=$(awk '/^__ARCHIVE_BELOW__/ {print NR + 1; exit 0; }' "$0")
 tail -n +"$ARCHIVE_LINE" "$0" | tar -xz -C "$TMP_EXTRACT"
-bash "$TMP_EXTRACT/Classic_Vienna_290_Linux_v1.0.0/install.sh"
+if [ "${1:-}" = "--uninstall" ] || [ "${1:-}" = "uninstall" ]; then
+    shift
+    bash "$TMP_EXTRACT/Classic_Vienna_290_Linux_v1.0.0/uninstall.sh" "$@"
+else
+    bash "$TMP_EXTRACT/Classic_Vienna_290_Linux_v1.0.0/install.sh" "$@"
+fi
 exit 0
 __ARCHIVE_BELOW__
 RUN_HEADER_EOF
@@ -147,15 +167,18 @@ cat "Classic_Vienna_290_Linux_v${VERSION}.tar.gz" >> "$RUN_INSTALLER"
 chmod +x "$RUN_INSTALLER"
 
 # Build Debian/Ubuntu/Mint installable package (.deb)
-DEB_STAGE="$DIST_DIR/deb_stage"
-rm -rf "$DEB_STAGE"
+DEB_STAGE="$(mktemp -d /tmp/classic_vienna_deb_stage.XXXXXX)"
+chmod 755 "$DEB_STAGE"
 mkdir -p "$DEB_STAGE/DEBIAN"
+chmod 755 "$DEB_STAGE/DEBIAN"
 mkdir -p "$DEB_STAGE/usr/bin"
 mkdir -p "$DEB_STAGE/usr/lib/vst3"
 mkdir -p "$DEB_STAGE/usr/share/applications"
 
 cp "$REPO_ROOT/$STANDALONE_SRC" "$DEB_STAGE/usr/bin/classic-vienna-290"
 chmod 755 "$DEB_STAGE/usr/bin/classic-vienna-290"
+cp "$SCRIPT_DIR/uninstall.sh" "$DEB_STAGE/usr/bin/classic-vienna-290-uninstall"
+chmod 755 "$DEB_STAGE/usr/bin/classic-vienna-290-uninstall"
 cp -R "$REPO_ROOT/$VST3_SRC" "$DEB_STAGE/usr/lib/vst3/Classic Vienna 290.vst3"
 chmod -R 755 "$DEB_STAGE/usr/lib/vst3/Classic Vienna 290.vst3"
 
@@ -171,6 +194,19 @@ Terminal=false
 Categories=AudioVideo;Audio;Music;
 StartupNotify=true
 DEB_DESKTOP_EOF
+
+cat << 'DEB_POSTRM_EOF' > "$DEB_STAGE/DEBIAN/postrm"
+#!/bin/sh
+set -e
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    rm -rf "/usr/lib/vst3/Classic Vienna 290.vst3"
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database /usr/share/applications 2>/dev/null || true
+    fi
+fi
+exit 0
+DEB_POSTRM_EOF
+chmod 755 "$DEB_STAGE/DEBIAN/postrm"
 
 INSTALLED_KB=$(du -sk "$DEB_STAGE/usr" | cut -f1)
 cat << DEB_CONTROL_EOF > "$DEB_STAGE/DEBIAN/control"
@@ -204,6 +240,9 @@ def reset_tarinfo(ti):
 
 with tarfile.open(control_tar, "w:gz") as tf:
     tf.add(os.path.join(stage_dir, "DEBIAN", "control"), arcname="./control", filter=reset_tarinfo)
+    postrm_path = os.path.join(stage_dir, "DEBIAN", "postrm")
+    if os.path.exists(postrm_path):
+        tf.add(postrm_path, arcname="./postrm", filter=reset_tarinfo)
 
 with tarfile.open(data_tar, "w:gz") as tf:
     tf.add(os.path.join(stage_dir, "usr"), arcname="./usr", filter=reset_tarinfo)
@@ -227,6 +266,7 @@ rm -rf "$DEB_STAGE"
 echo "=========================================================="
 echo " Linux packages created:"
 echo " - $RUN_INSTALLER"
+echo " - $RUN_UNINSTALLER"
 echo " - $DEB_OUT"
 echo " - $DIST_DIR/Classic_Vienna_290_Linux_v${VERSION}.tar.gz"
 echo " - $DIST_DIR/Classic_Vienna_290_Linux_v${VERSION}.zip"

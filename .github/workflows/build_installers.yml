@@ -63,12 +63,17 @@ jobs:
           } else {
             & "C:\Program Files\Inno Setup 6\ISCC.exe" packaging/windows/Bosendorfer_Imperial_Installer.iss
           }
+          Copy-Item -Force "packaging/windows/uninstall_windows.bat" "dist/windows/Classic_Vienna_290_Windows_Uninstall.bat"
+          Copy-Item -Force "packaging/windows/uninstall_windows.ps1" "dist/windows/Classic_Vienna_290_Windows_Uninstall.ps1"
 
       - name: Upload Windows Installer Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Classic_Vienna_290_Windows_Installer
-          path: dist/windows/*.exe
+          path: |
+            dist/windows/*.exe
+            dist/windows/*.bat
+            dist/windows/*.ps1
 
   # ============================================================================
   # 2. MACOS: Build Universal Binary (arm64 + x86_64), PKG & DMG Installer
@@ -84,7 +89,7 @@ jobs:
           submodules: recursive
 
       - name: Make Scripts Executable
-        run: chmod +x packaging/mac/build_mac_installer.sh
+        run: chmod +x packaging/mac/build_mac_installer.sh packaging/mac/uninstall_mac.sh "packaging/mac/Uninstall Classic Vienna 290.command"
 
       - name: Build Universal Binaries & Package Installer
         run: ./packaging/mac/build_mac_installer.sh
@@ -140,7 +145,7 @@ jobs:
 
       - name: Package Linux Distribution
         run: |
-          chmod +x packaging/linux/build_linux_package.sh
+          chmod +x packaging/linux/build_linux_package.sh packaging/linux/uninstall.sh
           ./packaging/linux/build_linux_package.sh
 
       - name: Upload Linux Package Artifact

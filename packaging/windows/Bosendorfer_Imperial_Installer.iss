@@ -26,7 +26,11 @@ SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
 PrivilegesRequired=admin
+Uninstallable=yes
+CreateUninstallRegKey=yes
+UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallFilesDir={app}
 ChangesEnvironment=no
 
 [Languages]
@@ -53,8 +57,10 @@ Source: "..\..\build\ClassicVienna290_artefacts\VST3\{#MyPluginName}\*"; DestDir
 Source: "..\..\build\ClassicVienna290_artefacts\Release\Standalone\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist; Components: standalone
 Source: "..\..\build\ClassicVienna290_artefacts\Standalone\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist; Components: standalone
 
-; 3. Documentation
+; 3. Documentation & Uninstaller Scripts
 Source: "..\common\README_INSTALL.txt"; DestDir: "{app}"; DestName: "README.txt"; Flags: ignoreversion; Components: docs
+Source: "uninstall_windows.bat"; DestDir: "{app}"; DestName: "Uninstall Classic Vienna 290.bat"; Flags: ignoreversion
+Source: "uninstall_windows.ps1"; DestDir: "{app}"; DestName: "Uninstall Classic Vienna 290.ps1"; Flags: ignoreversion
 
 [Icons]
 ; Start Menu Shortcuts
@@ -70,4 +76,38 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{commoncf}\VST3\{#MyPluginName}"
+Type: filesandordirs; Name: "{commoncf}\VST3\Bosendorfer Imperial 290.vst3"
+Type: filesandordirs; Name: "{userappdata}\Classic Vienna 290"
+Type: files; Name: "{userappdata}\Classic Vienna 290.settings"
 Type: filesandordirs; Name: "{app}"
+Type: dirifempty; Name: "{autopf}\Signal Forge Audio Labs"
+
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  LicDir: String;
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    DelTree(ExpandConstant('{commoncf}\VST3\{#MyPluginName}'), True, True, True);
+    DelTree(ExpandConstant('{commoncf}\VST3\Bosendorfer Imperial 290.vst3'), True, True, True);
+    DelTree(ExpandConstant('{userappdata}\Classic Vienna 290'), True, True, True);
+    DeleteFile(ExpandConstant('{userappdata}\Classic Vienna 290.settings'));
+
+    LicDir := ExpandConstant('{userappdata}\SignalForge');
+    if FileExists(LicDir + '\ClassicVienna290.lic') or FileExists(LicDir + '\Bosendorfer290.lic') then
+    begin
+      if not UninstallSilent then
+      begin
+        if MsgBox('Do you also want to remove your saved Classic Vienna 290 license file?', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+        begin
+          DeleteFile(LicDir + '\ClassicVienna290.lic');
+          DeleteFile(LicDir + '\Bosendorfer290.lic');
+          RemoveDir(LicDir);
+        end;
+      end;
+    end;
+
+    RemoveDir(ExpandConstant('{autopf}\Signal Forge Audio Labs'));
+  end;
+end;

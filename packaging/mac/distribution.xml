@@ -30,7 +30,7 @@
         <pkg-ref id="com.SignalForgeAudioLabs.ClassicVienna290.app"/>
     </choice>
 
-    <choice id="choiceDocs" title="Documentation &amp; User Guide" description="Installs documentation into /Library/Audio/Presets/SignalForgeAudioLabs/ClassicVienna290/." start_selected="true">
+    <choice id="choiceDocs" title="Documentation &amp; Uninstaller" description="Installs documentation and uninstaller script into /Library/Audio/Presets/SignalForgeAudioLabs/ClassicVienna290/." start_selected="true">
         <pkg-ref id="com.SignalForgeAudioLabs.ClassicVienna290.docs"/>
     </choice>
 </installer-gui-script>

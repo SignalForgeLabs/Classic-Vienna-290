@@ -20,15 +20,20 @@ and 6 selectable concert hall & venue impulse responses.
 WINDOWS:
 - VST3 Plugin: C:\Program Files\Common Files\VST3\Classic Vienna 290.vst3
 - Standalone App: C:\Program Files\Signal Forge Audio Labs\Classic Vienna 290\Classic Vienna 290.exe
+- Uninstaller: C:\Program Files\Signal Forge Audio Labs\Classic Vienna 290\unins000.exe
+  (or run "Uninstall Classic Vienna 290.bat" / Windows "Installed Apps")
 
 MACOS:
 - VST3 Plugin: /Library/Audio/Plug-Ins/VST3/Classic Vienna 290.vst3
 - AudioUnit (AU): /Library/Audio/Plug-Ins/Components/Classic Vienna 290.component
 - Standalone App: /Applications/Classic Vienna 290.app
+- Uninstaller: /Library/Audio/Presets/SignalForgeAudioLabs/ClassicVienna290/Uninstall Classic Vienna 290.command
+  (also included inside the macOS .dmg installer disk image)
 
 LINUX:
-- VST3 Plugin: ~/.vst3/Classic Vienna 290.vst3
-- Standalone App: ~/.local/bin/classic-vienna-290
+- VST3 Plugin: ~/.vst3/Classic Vienna 290.vst3 (or /usr/lib/vst3/Classic Vienna 290.vst3 for .deb)
+- Standalone App: ~/.local/bin/classic-vienna-290 (or /usr/bin/classic-vienna-290 for .deb)
+- Uninstaller: ~/.local/bin/classic-vienna-290-uninstall (or run ./uninstall.sh / sudo apt remove classic-vienna-290)
 
 (c) Signal Forge Audio Labs. All rights reserved.
 ==============================================================================

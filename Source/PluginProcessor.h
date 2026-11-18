@@ -82,6 +82,11 @@ public:
                  scopeRingR[static_cast<size_t>(idx)].load(std::memory_order_relaxed) };
     }
 
+    bool isTrialAudioMuted() const noexcept
+    {
+        return !LicenseManager::getInstance().isLicensed() && trialExpiredAtLaunch.load(std::memory_order_relaxed);
+    }
+
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState keyboardState;
 
@@ -110,7 +115,7 @@ private:
     int activeRoomIndex { -1 };
 
     double currentSampleRate { 44100.0 };
-    int64_t trialTimerSamples { 0 };
+    std::atomic<bool> trialExpiredAtLaunch { false };
     bool pedalWasDown { false };
     double pedalDownTimestamp { 0.0 };
 
